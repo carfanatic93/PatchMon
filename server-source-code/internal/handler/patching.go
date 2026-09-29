@@ -44,6 +44,7 @@ var deletablePatchRunStatuses = map[string]bool{
 // PatchingHandler handles patching endpoints.
 type PatchingHandler struct {
 	patchRuns      *store.PatchRunsStore
+	schedules      *store.PatchSchedulesStore
 	patchPolicies  *store.PatchPoliciesStore
 	assignments    *store.PatchPolicyAssignmentsStore
 	exclusions     *store.PatchPolicyExclusionsStore

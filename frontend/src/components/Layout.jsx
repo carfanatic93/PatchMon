@@ -323,6 +323,14 @@ const Layout = ({ children }) => {
 							? getRequiredTier("patching_policies")
 							: null,
 					},
+					{
+						name: "Schedules",
+						href: "/patching?tab=schedules",
+						lockedModule: policiesLocked ? "patching_policies" : null,
+						lockedTier: policiesLocked
+							? getRequiredTier("patching_policies")
+							: null,
+					},
 				];
 				opsItems.push({
 					name: "Patching",

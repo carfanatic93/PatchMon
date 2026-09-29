@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	AlertTriangle,
+	CalendarClock,
 	CheckCircle,
 	CheckSquare,
 	ChevronDown,
@@ -34,6 +35,7 @@ import {
 import { CompactPackageSummary } from "../components/PackageListDisplay";
 import { PatchRunStatusBadge } from "../components/PatchRunStatusBadge";
 import PatchWizard from "../components/PatchWizard";
+import SchedulesTab from "../components/patching/SchedulesTab";
 import {
 	PatchingActivePolicies,
 	PatchingPendingApproval,
@@ -57,6 +59,7 @@ const PATCHING_TABS = [
 	{ id: "overview", label: "Overview", icon: LayoutDashboard },
 	{ id: "runs", label: "Runs & History", icon: History },
 	{ id: "policies", label: "Policies", icon: Shield },
+	{ id: "schedules", label: "Schedules", icon: CalendarClock },
 ];
 
 const ValidatedBadge = () => (
@@ -73,7 +76,7 @@ const Patching = () => {
 	const { hasModule } = useAuth();
 	const policiesLocked = !hasModule("patching_policies");
 	const urlTab = searchParams.get("tab");
-	const initialTab = ["runs", "policies"].includes(urlTab)
+	const initialTab = ["runs", "policies", "schedules"].includes(urlTab)
 		? urlTab
 		: "overview";
 	const initialStatus = searchParams.get("status") || "";
@@ -452,7 +455,9 @@ const Patching = () => {
 				>
 					{PATCHING_TABS.map((tab) => {
 						const Icon = tab.icon;
-						const isPoliciesLocked = tab.id === "policies" && policiesLocked;
+						const isPoliciesLocked =
+							(tab.id === "policies" || tab.id === "schedules") &&
+							policiesLocked;
 						return (
 							<button
 								key={tab.id}
@@ -529,6 +534,12 @@ const Patching = () => {
 					<UpgradeRequiredContent module="patching_policies" variant="inline" />
 				) : (
 					<PoliciesTab />
+				))}
+			{activeTab === "schedules" &&
+				(policiesLocked ? (
+					<UpgradeRequiredContent module="patching_policies" variant="inline" />
+				) : (
+					<SchedulesTab />
 				))}
 
 			{/* Flow 7: Approve wizard - single-row Approve/Skip & Patch and

@@ -123,4 +123,18 @@ export const patchingAPI = {
 			.then((res) => res.data),
 	removePolicyExclusion: (id, hostId) =>
 		api.delete(`/patching/policies/${id}/exclusions/${hostId}`),
+
+	// Recurring schedules
+	getSchedules: () => api.get("/patching/schedules").then((res) => res.data),
+	createSchedule: (data) =>
+		api.post("/patching/schedules", data).then((res) => res.data),
+	updateSchedule: (id, data) =>
+		api.put(`/patching/schedules/${id}`, data).then((res) => res.data),
+	deleteSchedule: (id) => api.delete(`/patching/schedules/${id}`),
+	runScheduleNow: (id) =>
+		api.post(`/patching/schedules/${id}/run-now`).then((res) => res.data),
+	previewSchedule: (cron_expr, timezone) =>
+		api
+			.get("/patching/schedules/preview", { params: { cron_expr, timezone } })
+			.then((res) => res.data),
 };

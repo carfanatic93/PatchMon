@@ -1990,6 +1990,33 @@ Create a `Delayed 30min` policy with `patch_delay_type=delayed`, `delay_minutes=
 - [Patch History and Live Logs](#patch-history-and-live-logs): reading run history, including the policy snapshot shown on each run.
 - Hosts and Groups: managing host groups, which are the usual unit of policy assignment.
 
+### Recurring Patch Schedules
+
+Patch policies decide *when* a manually triggered patch runs. **Schedules** (`/patching?tab=schedules`) install updates automatically on a recurring basis, for example every Sunday at 12:00.
+
+Each schedule has:
+
+- **A repeat rule**: weekly, daily or monthly at a given time, or a custom 5-field cron expression (`minute hour day-of-month month day-of-week`). The form shows the next run times so you can confirm what the rule means.
+- **A timezone** (IANA name, defaults to the organisation timezone).
+- **A target**: all hosts, selected host groups, or individual hosts.
+
+When a schedule becomes due, PatchMon creates a **patch all** run for every targeted host and queues it for immediate execution. The runs appear under *Runs & History* with the policy name `Schedule: <name>`. Hosts are skipped when they:
+
+- have no pending updates,
+- already have a queued, running or pending-approval patch run,
+- are not active, or run Windows (Windows updates use their own workflow).
+
+Offline agents are handled by the normal patch queue, which retries every 5 minutes.
+
+Other behaviour worth knowing:
+
+- **Run now** executes a schedule immediately without changing its regular next run.
+- If the server or scheduler was down and a run is **more than one hour overdue**, it is skipped and the schedule moves on to its next slot. This avoids patching the fleet at an unexpected time after an outage.
+- Each schedule shows the outcome of its last run (queued / up to date / busy / failed counts).
+- Managing schedules requires the `can_manage_patching` permission; viewing requires `can_view_hosts`.
+
+API: `GET/POST /api/v1/patching/schedules`, `PUT/DELETE /api/v1/patching/schedules/{id}`, `POST /api/v1/patching/schedules/{id}/run-now`, `GET /api/v1/patching/schedules/preview?cron_expr=&timezone=`.
+
 ---
 
 ## Chapter 11: Patch History and Live Logs {#patch-history-and-live-logs}

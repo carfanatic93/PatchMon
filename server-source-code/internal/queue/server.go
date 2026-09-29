@@ -71,6 +71,7 @@ func NewServer(opts asynq.RedisClientOpt, registry *agentregistry.Registry, db *
 			QueuePatching:                    2,
 			notifications.QueueNotifications: 2,
 			QueueScheduledReports:            1,
+			QueuePatchSchedules:              2,
 			QueueMetricsSend:                 1,
 		},
 	})
@@ -117,6 +118,7 @@ func Mux(opts MuxOpts) *asynq.ServeMux {
 	mux.Handle(TypeUpdateThresholdMonitor, wrap(TypeUpdateThresholdMonitor, NewUpdateThresholdMonitorHandler(db, opts.PoolCache, opts.Emit, log)))
 	mux.Handle(notifications.TypeNotificationDeliver, wrap(notifications.TypeNotificationDeliver, NewNotificationDeliverHandler(db, opts.PoolCache, opts.Enc, opts.RDB, log)))
 	mux.Handle(TypeScheduledReportsDispatch, wrap(TypeScheduledReportsDispatch, NewScheduledReportsDispatchHandler(db, opts.PoolCache, opts.QueueClient, log)))
+	mux.Handle(TypePatchSchedulesDispatch, wrap(TypePatchSchedulesDispatch, NewPatchSchedulesDispatchHandler(db, opts.PoolCache, opts.QueueClient, log)))
 	mux.Handle(TypeScheduledReportRun, wrap(TypeScheduledReportRun, NewScheduledReportRunHandler(db, opts.PoolCache, opts.QueueClient, opts.Enc, log)))
 	mux.Handle(TypeAlertCleanup, wrap(TypeAlertCleanup, NewAlertCleanupHandler(db, opts.PoolCache, store.NewAlertConfigStore(dbResolver), log)))
 	mux.Handle(TypeSessionCleanup, wrap(TypeSessionCleanup, NewSessionCleanupHandler(db, opts.PoolCache, log)))
@@ -304,6 +306,16 @@ func NewScheduler(opts asynq.RedisClientOpt, db *database.DB, log *slog.Logger) 
 	// This hourly fallback catches any reports missed during restarts or edge cases.
 	dispatchReports := asynq.NewTask(TypeScheduledReportsDispatch, nil)
 	if _, err := scheduler.Register("0 * * * *", dispatchReports, asynq.Queue(QueueScheduledReports), asynq.Retention(AutomationRetention)); err != nil {
+		return nil, err
+	}
+
+	// Recurring patch schedules: evaluated every minute. The dispatcher claims each
+	// due schedule atomically, so overlapping ticks can't execute it twice.
+	dispatchPatchSchedules := asynq.NewTask(TypePatchSchedulesDispatch, nil)
+	if _, err := scheduler.Register("* * * * *", dispatchPatchSchedules,
+		asynq.Queue(QueuePatchSchedules),
+		asynq.Unique(patchScheduleDispatchUniqueWindow),
+		asynq.Retention(AutomationRetention)); err != nil {
 		return nil, err
 	}
 

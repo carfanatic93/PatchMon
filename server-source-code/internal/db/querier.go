@@ -100,6 +100,10 @@ type Querier interface {
 	// Re-parsing the JSON here is cheap (kilobytes, in-memory) and avoids a
 	// per-row round-trip — the alternative was a SELECT loop in Go.
 	BulkUpsertPackages(ctx context.Context, payload []byte) ([]BulkUpsertPackagesRow, error)
+	// The next_run_at equality guard is the concurrency control: if two dispatchers
+	// (or a dispatcher and an edit) race, only one UPDATE matches the old value, so
+	// a schedule is executed at most once per due time.
+	ClaimPatchScheduleRun(ctx context.Context, arg ClaimPatchScheduleRunParams) (int64, error)
 	ClearHostComplianceHashOnEnable(ctx context.Context, arg ClearHostComplianceHashOnEnableParams) error
 	// Force a fresh docker payload on next check-in by NULLing the hash whenever
 	// the operator re-enables docker. If the agent was already streaming docker
@@ -172,6 +176,7 @@ type Querier interface {
 	CreatePatchPolicyExclusion(ctx context.Context, arg CreatePatchPolicyExclusionParams) error
 	// patch_runs
 	CreatePatchRun(ctx context.Context, arg CreatePatchRunParams) error
+	CreatePatchSchedule(ctx context.Context, arg CreatePatchScheduleParams) (PatchSchedule, error)
 	CreateScheduledReport(ctx context.Context, arg CreateScheduledReportParams) (ScheduledReport, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) error
 	CreateTrustedDevice(ctx context.Context, arg CreateTrustedDeviceParams) error
@@ -218,6 +223,7 @@ type Querier interface {
 	DeletePatchPolicyAssignment(ctx context.Context, id string) error
 	DeletePatchPolicyExclusion(ctx context.Context, arg DeletePatchPolicyExclusionParams) error
 	DeletePatchRun(ctx context.Context, id string) error
+	DeletePatchSchedule(ctx context.Context, id string) error
 	DeletePendingConfig(ctx context.Context, hostID string) error
 	DeletePreviousCompletedScansByHostAndProfile(ctx context.Context, arg DeletePreviousCompletedScansByHostAndProfileParams) error
 	DeleteRepositoriesByIDs(ctx context.Context, dollar_1 []string) error
@@ -391,6 +397,7 @@ type Querier interface {
 	GetPatchPolicyByID(ctx context.Context, id string) (PatchPolicy, error)
 	GetPatchRunByID(ctx context.Context, id string) (GetPatchRunByIDRow, error)
 	GetPatchRunByIDSimple(ctx context.Context, id string) (PatchRun, error)
+	GetPatchScheduleByID(ctx context.Context, id string) (PatchSchedule, error)
 	GetPendingConfig(ctx context.Context, hostID string) (HostPendingConfig, error)
 	GetPendingUpdateCountsPerHost(ctx context.Context) ([]GetPendingUpdateCountsPerHostRow, error)
 	// Returns WUA GUIDs that are still pending (needs_update=true, not yet installed) for a host.
@@ -486,10 +493,13 @@ type Querier interface {
 	ListExistingHostApiIDs(ctx context.Context, dollar_1 []string) ([]string, error)
 	ListHostGroups(ctx context.Context) ([]HostGroup, error)
 	ListHostGroupsWithHostCount(ctx context.Context) ([]ListHostGroupsWithHostCountRow, error)
+	ListHostIDsWithActivePatchRun(ctx context.Context, dollar_1 []string) ([]string, error)
 	ListHostOptions(ctx context.Context, arg ListHostOptionsParams) ([]ListHostOptionsRow, error)
 	ListHosts(ctx context.Context) ([]Host, error)
 	ListHostsForComplianceDashboard(ctx context.Context) ([]ListHostsForComplianceDashboardRow, error)
 	ListHostsForPackage(ctx context.Context, arg ListHostsForPackageParams) ([]ListHostsForPackageRow, error)
+	// Active, non-Windows hosts in the schedule's target with their pending-update count.
+	ListHostsForPatchSchedule(ctx context.Context, arg ListHostsForPatchScheduleParams) ([]ListHostsForPatchScheduleRow, error)
 	ListHostsPaginated(ctx context.Context, arg ListHostsPaginatedParams) ([]ListHostsPaginatedRow, error)
 	ListImages(ctx context.Context, arg ListImagesParams) ([]DockerImage, error)
 	ListJobHistoryByApiID(ctx context.Context, arg ListJobHistoryByApiIDParams) ([]JobHistory, error)
@@ -522,6 +532,8 @@ type Querier interface {
 	ListPatchRunsOrderByStartedAtAsc(ctx context.Context, arg ListPatchRunsOrderByStartedAtAscParams) ([]ListPatchRunsOrderByStartedAtAscRow, error)
 	ListPatchRunsOrderByStatus(ctx context.Context, arg ListPatchRunsOrderByStatusParams) ([]ListPatchRunsOrderByStatusRow, error)
 	ListPatchRunsOrderByStatusDesc(ctx context.Context, arg ListPatchRunsOrderByStatusDescParams) ([]ListPatchRunsOrderByStatusDescRow, error)
+	ListPatchSchedules(ctx context.Context) ([]PatchSchedule, error)
+	ListPatchSchedulesDue(ctx context.Context, nextRunAt pgtype.Timestamp) ([]PatchSchedule, error)
 	ListRecentPatchRuns(ctx context.Context, limit int32) ([]ListRecentPatchRunsRow, error)
 	ListRepositories(ctx context.Context, arg ListRepositoriesParams) ([]ListRepositoriesRow, error)
 	ListRoles(ctx context.Context) ([]RolePermission, error)
@@ -561,6 +573,7 @@ type Querier interface {
 	SetHostAwaitingPostPatchReport(ctx context.Context, arg SetHostAwaitingPostPatchReportParams) error
 	SetNewsletterSubscribed(ctx context.Context, id string) error
 	SetPatchRunPolicySnapshot(ctx context.Context, arg SetPatchRunPolicySnapshotParams) error
+	SetPatchScheduleRunResult(ctx context.Context, arg SetPatchScheduleRunResultParams) error
 	ToggleHostRepository(ctx context.Context, arg ToggleHostRepositoryParams) error
 	TouchTrustedDeviceLastUsed(ctx context.Context, arg TouchTrustedDeviceLastUsedParams) error
 	UpdateAlert(ctx context.Context, id string) error
@@ -644,6 +657,7 @@ type Querier interface {
 	// output on the terminal stage; REPLACE (not append) so the final record is never
 	// a duplicate of the streamed progress.
 	UpdatePatchRunValidated(ctx context.Context, arg UpdatePatchRunValidatedParams) error
+	UpdatePatchSchedule(ctx context.Context, arg UpdatePatchScheduleParams) (PatchSchedule, error)
 	UpdateRepository(ctx context.Context, arg UpdateRepositoryParams) error
 	UpdateScheduledReport(ctx context.Context, arg UpdateScheduledReportParams) (ScheduledReport, error)
 	UpdateScheduledReportRunTimes(ctx context.Context, arg UpdateScheduledReportRunTimesParams) error

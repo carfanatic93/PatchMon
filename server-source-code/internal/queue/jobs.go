@@ -50,6 +50,8 @@ const (
 	QueueComplianceScanCleanup   = "compliance-scan-cleanup"
 	QueueSSGUpdateCheck          = "ssg-update-check"
 	QueueScheduledReports        = "scheduled-reports"
+	TypePatchSchedulesDispatch   = "patch_schedules_dispatch"
+	QueuePatchSchedules          = "patch-schedules"
 	TypeUpdateThresholdMonitor   = "update-threshold-monitor"
 	QueueUpdateThresholdMonitor  = "update-threshold-monitor"
 	TypePatchRunCleanup          = "patch-run-cleanup"

@@ -834,3 +834,21 @@ SELECT
 FROM host_packages hp
 GROUP BY hp.package_id;
 CREATE UNIQUE INDEX IF NOT EXISTS mv_package_stats_pkey ON mv_package_stats (package_id);
+
+-- patch_schedules
+CREATE TABLE IF NOT EXISTS patch_schedules (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL DEFAULT '',
+    cron_expr TEXT NOT NULL,
+    timezone TEXT NOT NULL DEFAULT 'UTC',
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    target_type TEXT NOT NULL DEFAULT 'all',
+    target_ids TEXT[] NOT NULL DEFAULT '{}',
+    next_run_at TIMESTAMP(3),
+    last_run_at TIMESTAMP(3),
+    last_run_result JSONB,
+    created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

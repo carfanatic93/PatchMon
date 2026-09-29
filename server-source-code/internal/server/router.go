@@ -267,6 +267,7 @@ func NewRouter(ctx context.Context, cfg *config.Config, db *database.DB, rdb *re
 	// for the stop-run endpoint. Kept as optional dependencies so unrelated
 	// call-sites don't need to thread them.
 	patchingHandler.SetStreamDependencies(patchstream.NewHub(), registry)
+	patchingHandler.SetScheduleStore(store.NewPatchSchedulesStore(dbProvider))
 	windowsUpdatesHandler := handler.NewWindowsUpdatesHandler(hostsStore, dbProvider, notifyEmit)
 
 	aiSvc := ai.NewService(enc)
@@ -640,6 +641,13 @@ func NewRouter(ctx context.Context, cfg *config.Config, db *database.DB, rdb *re
 			r.With(middleware.RequirePermission("can_manage_patching", permissionsStore), hostctx.RequireModule("patching_policies")).Delete("/patching/policies/{id}/assignments/{assignmentId}", patchingHandler.RemovePolicyAssignment)
 			r.With(middleware.RequirePermission("can_manage_patching", permissionsStore), hostctx.RequireModule("patching_policies")).Post("/patching/policies/{id}/exclusions", patchingHandler.AddPolicyExclusion)
 			r.With(middleware.RequirePermission("can_manage_patching", permissionsStore), hostctx.RequireModule("patching_policies")).Delete("/patching/policies/{id}/exclusions/{hostId}", patchingHandler.RemovePolicyExclusion)
+			// Recurring patch schedules (cron-based automatic patch_all runs): patching_policies module.
+			r.With(middleware.RequirePermission("can_view_hosts", permissionsStore), hostctx.RequireModule("patching_policies")).Get("/patching/schedules", patchingHandler.ListSchedules)
+			r.With(middleware.RequirePermission("can_view_hosts", permissionsStore), hostctx.RequireModule("patching_policies")).Get("/patching/schedules/preview", patchingHandler.PreviewScheduleRuns)
+			r.With(middleware.RequirePermission("can_manage_patching", permissionsStore), hostctx.RequireModule("patching_policies")).Post("/patching/schedules", patchingHandler.CreateSchedule)
+			r.With(middleware.RequirePermission("can_manage_patching", permissionsStore), hostctx.RequireModule("patching_policies")).Put("/patching/schedules/{id}", patchingHandler.UpdateSchedule)
+			r.With(middleware.RequirePermission("can_manage_patching", permissionsStore), hostctx.RequireModule("patching_policies")).Delete("/patching/schedules/{id}", patchingHandler.DeleteSchedule)
+			r.With(middleware.RequirePermission("can_manage_patching", permissionsStore), hostctx.RequireModule("patching_policies")).Post("/patching/schedules/{id}/run-now", patchingHandler.RunScheduleNow)
 			// Windows Update metadata for a host (UI-facing). Part of the patching feature set.
 			r.With(middleware.RequirePermission("can_view_hosts", permissionsStore), hostctx.RequireModule("patching")).Get("/patching/windows-updates/{hostId}", windowsUpdatesHandler.ListForHost)
 

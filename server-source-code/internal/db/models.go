@@ -491,6 +491,23 @@ type PatchRun struct {
 	UpdatedAt         pgtype.Timestamp `json:"updated_at"`
 }
 
+type PatchSchedule struct {
+	ID              string           `json:"id"`
+	Name            string           `json:"name"`
+	Description     string           `json:"description"`
+	CronExpr        string           `json:"cron_expr"`
+	Timezone        string           `json:"timezone"`
+	Enabled         bool             `json:"enabled"`
+	TargetType      string           `json:"target_type"`
+	TargetIds       []string         `json:"target_ids"`
+	NextRunAt       pgtype.Timestamp `json:"next_run_at"`
+	LastRunAt       pgtype.Timestamp `json:"last_run_at"`
+	LastRunResult   []byte           `json:"last_run_result"`
+	CreatedByUserID *string          `json:"created_by_user_id"`
+	CreatedAt       pgtype.Timestamp `json:"created_at"`
+	UpdatedAt       pgtype.Timestamp `json:"updated_at"`
+}
+
 type ReleaseNotesAcceptance struct {
 	ID         string           `json:"id"`
 	UserID     string           `json:"user_id"`
