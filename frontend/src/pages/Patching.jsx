@@ -87,7 +87,7 @@ const Patching = () => {
 	useEffect(() => {
 		const params = new URLSearchParams(location.search);
 		const tab = params.get("tab");
-		if (tab && ["overview", "runs", "policies"].includes(tab)) {
+		if (tab && ["overview", "runs", "policies", "schedules"].includes(tab)) {
 			setActiveTab(tab);
 		}
 		const status = params.get("status") || "";
