@@ -151,11 +151,11 @@ Aktueller Stand zum Zeitpunkt dieser Notiz: Upstream wurde am 2026-10-16 gemerge
 
 ## 7. Arbeitsregeln für Claude in diesem Projekt
 
-- Nichts ans Original senden. Pushen und Mergen in `main` macht Sebastian selbst; vorher fragen, bevor etwas gepusht wird.
+- Nichts ans Original senden. Claude darf Feature-Branches selbst nach `origin` pushen (seit 2026-10-22), aber nie nach `upstream`. Das Mergen in `main` macht Sebastian.
 - Einspielen auf der Instanz nur über den Deploy-Schlüssel (Abschnitt 4), vorher `backup-db`.
 - Der Workflow „Build and Push Docker Images“ ist im Fork auf GitHub deaktiviert (Fork hat keine Tags, kein Docker-Einsatz). Die Workflow-Datei nicht ändern, sonst Merge-Konflikte.
 - Software installieren, Dateien löschen oder Hooks entfernen nur nach ausdrücklichem Ok.
 - Commits nur auf Wunsch, auf Feature-Branch, mit Zeile `Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>` am Ende.
 - Die Oberfläche ist englisch, die Kommunikation mit Sebastian deutsch.
 - Kleine, gut abgegrenzte Änderungen bevorzugen, damit künftige Upstream-Merges einfach bleiben.
-- Memory-Datei `patchmon-fork-workflow.md` im Claude-Memory-Ordner enthält dieselben Eckdaten in Kurzform.
+- Memory-Datei `patchmon-fork-workflow.md` im Claude-Memory-Ordner enthält dieselben Eckdaten in Kurzform (nur auf dem Mac; auf dem Claude-LXC heißt sie `lxc-toolchain.md`).
