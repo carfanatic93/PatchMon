@@ -151,7 +151,7 @@ Aktueller Stand zum Zeitpunkt dieser Notiz: Upstream wurde am 2026-10-16 gemerge
 
 ## 7. Arbeitsregeln für Claude in diesem Projekt
 
-- Nichts ans Original senden. Claude darf Feature-Branches selbst nach `origin` pushen (seit 2026-10-22), aber nie nach `upstream`. Das Mergen in `main` macht Sebastian.
+- Nichts ans Original senden. Claude darf Feature-Branches selbst nach `origin` pushen und in `main` mergen (seit 2026-10-22), aber nie nach `upstream`. Gemerged wird lokal mit `git merge --no-ff <branch>` auf `main`, danach `git push origin main`. Direkt auf `main` committen ist nicht erlaubt.
 - Einspielen auf der Instanz nur über den Deploy-Schlüssel (Abschnitt 4), vorher `backup-db`.
 - Der Workflow „Build and Push Docker Images“ ist im Fork auf GitHub deaktiviert (Fork hat keine Tags, kein Docker-Einsatz). Die Workflow-Datei nicht ändern, sonst Merge-Konflikte.
 - Software installieren, Dateien löschen oder Hooks entfernen nur nach ausdrücklichem Ok.
