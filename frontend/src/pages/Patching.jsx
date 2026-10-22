@@ -88,7 +88,10 @@ const Patching = () => {
 	useTabParam(activeTab);
 
 	useEffect(() => {
-		if (urlTab && ["overview", "runs", "policies", "schedules"].includes(urlTab)) {
+		if (
+			urlTab &&
+			["overview", "runs", "policies", "schedules"].includes(urlTab)
+		) {
 			setActiveTab(urlTab);
 		}
 	}, [urlTab]);
