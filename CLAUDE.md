@@ -28,7 +28,7 @@ Zeitpläne stehen unter **Patching → Schedules** (`/patching?tab=schedules`, a
 ### Berührte Dateien (Konfliktstellen bei Upstream-Merges)
 
 Neu (konfliktfrei): 
-- `server-source-code/internal/migrate/migrations/000059_v2-1-5_patch_schedules.{up,down}.sql` (ursprünglich `000049`, nach Nummernkonflikt mit Upstream umbenannt)
+- `server-source-code/internal/migrate/migrations/000060_v2-1-5_patch_schedules.{up,down}.sql` (ursprünglich `000049`, dann `000059`; nach Nummernkonflikt mit Upstream `000059_v2-1-7_job_history_indexes` auf `000060` umbenannt)
 - `server-source-code/internal/queue/patch_schedule_worker.go` (+ `_test.go`, Integrationstest nur mit `PATCHMON_TEST_DATABASE_URL`)
 - `server-source-code/internal/handler/patch_schedules.go` (+ `_test.go`)
 - `server-source-code/internal/store/patch_schedules.go`
@@ -130,7 +130,7 @@ Rollback: Dienst stoppen, `patchmon-server.bak` zurückkopieren, starten. Bei ne
 Wenn Sebastian sagt "hol das Update vom Original":
 
 1. `git fetch upstream` und `git merge upstream/main` (neuen Branch dafür anlegen ist sinnvoll).
-2. Konflikte in den oben gelisteten Dateien lösen. **Migrationsnummer prüfen:** meine Migration ist `000059`. Bringt Upstream dieselbe Nummer oder höher, auf die nächste freie umbenennen (`ls server-source-code/internal/migrate/migrations`) und `schema.sql` abgleichen.
+2. Konflikte in den oben gelisteten Dateien lösen. **Migrationsnummer prüfen:** meine Migration ist `000060`. Bringt Upstream dieselbe Nummer oder höher, auf die nächste freie umbenennen (`ls server-source-code/internal/migrate/migrations`) und `schema.sql` abgleichen.
 3. Bei Konflikten in `go.mod`/`go.sum`/`package-lock.json`: Upstreams Version nehmen, dann `go mod tidy` bzw. `npm install` und `npm audit fix`.
 4. **sqlc ist lokal nicht installiert.** Es lief bisher per Docker: `docker run --rm -v "$PWD":/src -w /src sqlc/sqlc:1.30.0 generate` im Ordner `server-source-code`. Falls Docker nicht läuft, `querier.go`/`*.sql.go` von Hand anpassen.
 5. Prüfen: Go-Tests, `golangci-lint`, Frontend-Tests, danach Binary bauen (Abschnitt 4).
