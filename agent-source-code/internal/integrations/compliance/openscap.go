@@ -457,7 +457,8 @@ func aptAvailable(ctx context.Context, env []string, pkgs []string) []string {
 func aptInstall(ctx context.Context, env []string, onlyUpgrade bool, pkgs ...string) ([]byte, error) {
 	args := []string{"install", "-y", "-qq",
 		"-o", "Dpkg::Options::=--force-confdef",
-		"-o", "Dpkg::Options::=--force-confold"}
+		"-o", "Dpkg::Options::=--force-confold",
+		"-o", "Acquire::Retries=0"}
 	if onlyUpgrade {
 		args = append(args, "--only-upgrade")
 	}
