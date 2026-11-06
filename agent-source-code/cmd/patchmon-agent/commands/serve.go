@@ -287,6 +287,7 @@ func runServiceLoop(stopCh <-chan struct{}) error {
 				logger.WithField("interval", intervalMinutes).Info("Updated interval in config.yml")
 			}
 		}
+		applyAptDisableRetries(resp.AptDisableRetries)
 	} else if err != nil {
 		logger.WithError(err).Warn("Failed to fetch interval from server, using config value")
 	}
@@ -485,6 +486,7 @@ func runServiceLoop(stopCh <-chan struct{}) error {
 						})).Info("Package cache refresh settings updated")
 					}
 				}
+				applyAptDisableRetries(m.aptDisableRetries)
 			case "report_now":
 				if err := sendReport(false); err != nil {
 					logger.WithError(err).Warn("report_now failed")
@@ -1397,6 +1399,7 @@ type wsMsg struct {
 	complianceScanInterval    int
 	packageCacheRefreshMode   string
 	packageCacheRefreshMaxAge int
+	aptDisableRetries         *bool
 	version                   string
 	profileType               string // For compliance_scan: openscap, docker-bench, all
 	profileID                 string // For compliance_scan: specific XCCDF profile ID
@@ -1728,6 +1731,17 @@ func readWSMessage(conn *websocket.Conn) ([]byte, error) {
 	return data, nil
 }
 
+func applyAptDisableRetries(v *bool) {
+	if v == nil || *v == cfgManager.GetAptDisableRetries() {
+		return
+	}
+	if err := cfgManager.SetAptDisableRetries(*v); err != nil {
+		logger.WithError(err).Warn("Failed to save apt disable_retries to config.yml")
+		return
+	}
+	logger.WithField("apt_disable_retries", *v).Info("Apt disable_retries updated")
+}
+
 // dispatchWSMessage hands a decoded message to the service loop.
 //
 // It must never block indefinitely. While the read loop is parked on this send
@@ -1894,6 +1908,7 @@ func connectOnce(out chan<- wsMsg, backoff *time.Duration) (connected bool, err 
 			ComplianceScanInterval    int                    `json:"compliance_scan_interval"`
 			PackageCacheRefreshMode   string                 `json:"package_cache_refresh_mode"`
 			PackageCacheRefreshMaxAge int                    `json:"package_cache_refresh_max_age"`
+			AptDisableRetries         *bool                  `json:"apt_disable_retries"`
 			Version                   string                 `json:"version"`
 			ProfileType               string                 `json:"profile_type"`           // For compliance_scan
 			ProfileID                 string                 `json:"profile_id"`             // For compliance_scan: specific XCCDF profile ID
@@ -1937,7 +1952,7 @@ func connectOnce(out chan<- wsMsg, backoff *time.Duration) (connected bool, err 
 		switch payload.Type {
 		case "settings_update":
 			logger.WithField("interval", payload.UpdateInterval).Info("settings_update received")
-			dispatchWSMessage(out, wsMsg{kind: "settings_update", interval: payload.UpdateInterval, complianceScanInterval: payload.ComplianceScanInterval, packageCacheRefreshMode: payload.PackageCacheRefreshMode, packageCacheRefreshMaxAge: payload.PackageCacheRefreshMaxAge})
+			dispatchWSMessage(out, wsMsg{kind: "settings_update", interval: payload.UpdateInterval, complianceScanInterval: payload.ComplianceScanInterval, packageCacheRefreshMode: payload.PackageCacheRefreshMode, packageCacheRefreshMaxAge: payload.PackageCacheRefreshMaxAge, aptDisableRetries: payload.AptDisableRetries})
 		case "report_now":
 			logger.Info("report_now received")
 			dispatchWSMessage(out, wsMsg{kind: "report_now"})
@@ -2564,12 +2579,18 @@ var dpkgConfOptions = []string{
 	"-o", "Dpkg::Options::=--force-confold",
 }
 
+var aptRetriesOff = []string{"-o", "Acquire::Retries=0"}
+
 // aptUpgradeArgs builds the apt-get arguments for a full upgrade.
-func aptUpgradeArgs(dryRun bool) []string {
+func aptUpgradeArgs(dryRun, disableRetries bool) []string {
 	if dryRun {
 		return []string{"-s", "--with-new-pkgs", "upgrade"}
 	}
-	return append(slices.Clone(dpkgConfOptions), "--with-new-pkgs", "upgrade", "-y")
+	args := slices.Clone(dpkgConfOptions)
+	if disableRetries {
+		args = append(args, aptRetriesOff...)
+	}
+	return append(args, "--with-new-pkgs", "upgrade", "-y")
 }
 
 // ucsUpgradeArgs keeps univention-upgrade to the installed release: no App Center app updates
@@ -2590,11 +2611,15 @@ func ucsUpgradeRefusal(release string) string {
 }
 
 // aptOnlyUpgradeArgs builds the apt-get arguments for upgrading named packages.
-func aptOnlyUpgradeArgs(dryRun bool, packageNames []string) []string {
+func aptOnlyUpgradeArgs(dryRun, disableRetries bool, packageNames []string) []string {
 	if dryRun {
 		return append([]string{"-s", "--only-upgrade", "install"}, packageNames...)
 	}
-	args := append(slices.Clone(dpkgConfOptions), "--only-upgrade", "install", "-y")
+	args := slices.Clone(dpkgConfOptions)
+	if disableRetries {
+		args = append(args, aptRetriesOff...)
+	}
+	args = append(args, "--only-upgrade", "install", "-y")
 	return append(args, packageNames...)
 }
 
@@ -2635,6 +2660,7 @@ func runPatch(patchRunID, patchType string, packageNames []string, dryRun bool) 
 		MaxAge: cfgManager.GetPackageCacheRefreshMaxAge(),
 	})
 	pkgManager := packageMgr.DetectPackageManager()
+	aptDisableRetries := cfgManager.GetAptDisableRetries()
 
 	if !slices.Contains([]string{"apt", "dnf", "yum", "pkg", "pacman", "apk", "zypper"}, pkgManager) {
 		errMsg := fmt.Sprintf("package manager %q not supported for patching (apt, dnf, yum, pkg, pacman, apk, zypper required)", pkgManager)
@@ -2819,11 +2845,11 @@ func runPatch(patchRunID, patchType string, packageNames []string, dryRun bool) 
 				// applies the patch, installs nothing, and reports them as
 				// outdated again forever.
 				if dryRun {
-					if err, abort := runStep(false, "apt-get -s upgrade", "apt-get -s upgrade failed: %w", "apt-get", aptUpgradeArgs(true)...); abort {
+					if err, abort := runStep(false, "apt-get -s upgrade", "apt-get -s upgrade failed: %w", "apt-get", aptUpgradeArgs(true, aptDisableRetries)...); abort {
 						stepErr = err
 					}
 				} else {
-					if err, abort := runStep(false, "apt-get upgrade", "apt-get upgrade failed: %w", "apt-get", aptUpgradeArgs(false)...); abort {
+					if err, abort := runStep(false, "apt-get upgrade", "apt-get upgrade failed: %w", "apt-get", aptUpgradeArgs(false, aptDisableRetries)...); abort {
 						stepErr = err
 					}
 				}
@@ -2861,12 +2887,12 @@ func runPatch(patchRunID, patchType string, packageNames []string, dryRun bool) 
 			switch pkgManager {
 			case "apt":
 				if dryRun {
-					args := aptOnlyUpgradeArgs(true, packageNames)
+					args := aptOnlyUpgradeArgs(true, aptDisableRetries, packageNames)
 					if err, abort := runStep(false, "apt-get -s --only-upgrade install", "apt-get -s --only-upgrade install failed: %w", "apt-get", args...); abort {
 						stepErr = err
 					}
 				} else {
-					args := aptOnlyUpgradeArgs(false, packageNames)
+					args := aptOnlyUpgradeArgs(false, aptDisableRetries, packageNames)
 					if err, abort := runStep(false, "apt-get --only-upgrade install", "apt-get --only-upgrade install failed: %w", "apt-get", args...); abort {
 						stepErr = err
 					}
